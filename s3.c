@@ -25,19 +25,47 @@ void read_command_line(char line[])
 
 void parse_command(char line[], char *args[], int *argsc)
 {
-    ///Implements simple tokenization (space delimited)
-    ///Note: strtok puts '\0' (null) characters within the existing storage, 
-    ///to split it into logical cstrings.
-    ///There is no dynamic allocation.
-
-    ///See the man page of strtok(...)
-    char *token = strtok(line, " ");
-    *argsc = 0;
-    while (token != NULL && *argsc < MAX_ARGS - 1)
-    {
-        args[(*argsc)++] = token;
-        token = strtok(NULL, " ");
+    int p1=0;
+    int p2=0;
+    char *tmp_token;
+    *argsc=0;
+    while(line[p2]!='\0'){
+        if(line[p2]==' '){
+            if(p2>p1) args[(*argsc)++]=&line[p1];
+            line[p2]='\0';
+            p2++;
+            while(line[p2]==' ') p2++;
+            p1=p2;
+        }
+        else if(line[p2]=='<'||line[p2]=='>'){
+            if(p2>p1) {tmp_token=malloc(p2-p1+1);
+            memcpy(tmp_token,&line[p1],p2-p1);
+            tmp_token[p2-p1]='\0';
+            args[(*argsc)++]=tmp_token;}
+            if(line[p2]=='>'&&line[p2+1]=='>') {
+                tmp_token=malloc(3);
+                tmp_token[0]='>';
+                tmp_token[1]='>';
+                tmp_token[2]='\0';
+                args[(*argsc)++]=tmp_token;
+                p2+=2;
+                while(line[p2]==' ')p2++;
+                p1=p2;
+            }
+            else {
+                tmp_token=malloc(2);
+                tmp_token[0]=line[p2];
+                tmp_token[1]='\0';
+                args[(*argsc)++]=tmp_token;
+                p2++;
+                while(line[p2]==' ')p2++;
+                p1=p2;
+            }
+        }
+        else p2++;
     }
+
+    if(p2>p1) args[(*argsc)++]=&line[p1];
     
     args[*argsc] = NULL; ///args must be null terminated
 }
@@ -78,4 +106,13 @@ void launch_program(char *args[], int argsc)
     ///Handle the 'exit' command;
     ///so that the shell, not the child process,
     ///exits.
+}
+
+bool command_with_redirection(char line[]){
+    int i=0;
+    while(line[i]!=NULL){
+        if(line[i]=='>'||line[i]=='<') return true;
+        i++;
+    }
+    return false;
 }
