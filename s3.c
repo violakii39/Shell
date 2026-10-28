@@ -23,6 +23,7 @@ void read_command_line(char line[])
     line[strlen(line) - 1] = '\0';
 }
 
+
 void parse_command(char line[], char *args[], int *argsc)
 {
     ///Implements simple tokenization (space delimited)
@@ -60,8 +61,12 @@ void launch_program(char *args[], int argsc)
     ///Implement this function:
     if (argsc==0||args[ARG_PROGNAME]==NULL) return;
     if (strcmp(args[ARG_PROGNAME],"exit")==0) exit(0);
+
     
     pid_t pid=fork();
+
+
+
     if(pid<0){
         printf("fork failed\n");
         exit(1);
@@ -78,4 +83,61 @@ void launch_program(char *args[], int argsc)
     ///Handle the 'exit' command;
     ///so that the shell, not the child process,
     ///exits.
+}
+
+
+
+void configure_redirection_dup(char *args[], int argsc){
+    for (int i = 0; i < argsc; i++){ // configure every redirection in the command
+        int dup_fd[2];
+        if (strcmp(args[i], "<") == 0) {
+            dup_fd[0] = open(args[i+1], O_RDONLY);
+            dup_fd[1] = STDIN_FILENO;
+        }
+        else if (strcmp(args[i], ">") == 0) {
+            dup_fd[0] = open(args[i+1], O_WRONLY | O_CREAT | O_TRUNC, 0644);
+            dup_fd[1] = STDOUT_FILENO;
+        }
+        else if (strcmp(args[i], ">>") == 0) {
+            dup_fd[0] = open(args[i+1], O_WRONLY | O_CREAT | O_APPEND, 0644);
+            dup_fd[1] = STDOUT_FILENO;
+        }   
+        else{ //if there is no redirection, don't execute the following code
+            continue;
+        }
+        if(dup_fd[0] == -1){
+            perror("file error");
+            _exit(1);
+        }
+        if(dup2(dup_fd[0],dup_fd[1]) == -1){
+            perror("dup2 error");
+            _exit(1);
+        }
+        close(dup_fd[0]);
+
+        for (int j = i; j < argsc - 2; j++) { //dup configuration finished, remove refirection tokens from args by shifting 2
+            args[j] = args[j + 2];
+        }
+        argsc -= 2;
+        args[argsc] = NULL;
+        i--; //examine the current instructio again for potentially shifted in redirection operators
+    }
+}
+
+void launch_program_with_redirection(char *args[], int argsc)
+{
+    ///Implement this function:
+    if (argsc==0||args[ARG_PROGNAME]==NULL) return;
+    if (strcmp(args[ARG_PROGNAME],"exit")==0) exit(0);
+
+    pid_t pid=fork();
+    if(pid<0){
+        printf("fork failed\n");
+        exit(1);
+    } 
+    else if(pid==0) {
+        configure_redirection_dup(args,argsc);
+        child(args,argsc);
+        exit(1);
+    }
 }
