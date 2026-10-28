@@ -52,7 +52,7 @@ void child(char *args[], int argsc)
     ///For reference, see the code in lecture 3.
     execvp(args[ARG_PROGNAME],args);
     perror("execvp");
-    _exit(127);
+    exit(1);
 }
 
 void launch_program(char *args[], int argsc)
@@ -68,7 +68,7 @@ void launch_program(char *args[], int argsc)
     } 
     else if(pid==0) {
         child(args,argsc);
-        _exit(1);
+        exit(1);
     }
     ///fork() a child process.
     ///In the child part of the code,
