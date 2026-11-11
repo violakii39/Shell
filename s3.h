@@ -11,6 +11,8 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 
+#include <stdbool.h>
+
 ///Constants for array sizes, defined for clarity and code readability
 #define MAX_LINE 1024
 #define MAX_ARGS 128
@@ -38,6 +40,7 @@ static inline void reap()
 void read_command_line(char line[]);
 void construct_shell_prompt(char shell_prompt[]);
 void parse_command(char line[], char *args[], int *argsc);
+int split_operators(char *token, char *args[], int *argsc);
 
 ///Child functions (add more as appropriate)
 void child(char *args[], int argsc);
@@ -45,3 +48,6 @@ void child(char *args[], int argsc);
 ///Program launching functions (add more as appropriate)
 void launch_program(char *args[], int argsc);
 #endif
+
+bool command_with_redirection(char line[]);
+void launch_program_with_redirection(char *args[], int argsc);

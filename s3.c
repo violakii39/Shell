@@ -23,51 +23,60 @@ void read_command_line(char line[])
     line[strlen(line) - 1] = '\0';
 }
 
-void parse_command(char line[], char *args[], int *argsc)
-{
+
+int split_operators(char *token, char *args[], int *argsc){
     int p1=0;
     int p2=0;
-    char *tmp_token;
-    *argsc=0;
-    while(line[p2]!='\0'){
-        if(line[p2]==' '){
-            if(p2>p1) args[(*argsc)++]=&line[p1];
-            line[p2]='\0';
-            p2++;
-            while(line[p2]==' ') p2++;
+    while(token[p2]!='\0'){
+        if(token[p2]=='<'||token[p2]=='>'){
+            char *op;
+            int op_len=1;
+            if(token[p2]=='<'){
+                op="<";
+            }
+            else if(token[p2+1]=='>'){
+                op_len++;
+                op=">>";
+            }
+            else{
+                op=">";
+            }
+            if(p2>p1){
+                if(*argsc>=MAX_ARGS-1) return -1;
+                token[p2]='\0';
+                args[(*argsc)++]=&token[p1];
+            }
+            if(*argsc>=MAX_ARGS-1) return -1;
+            args[(*argsc)++]=op;
+
+            p2+=op_len;
             p1=p2;
         }
-        else if(line[p2]=='<'||line[p2]=='>'){
-            if(p2>p1) {tmp_token=malloc(p2-p1+1);
-            memcpy(tmp_token,&line[p1],p2-p1);
-            tmp_token[p2-p1]='\0';
-            args[(*argsc)++]=tmp_token;}
-            if(line[p2]=='>'&&line[p2+1]=='>') {
-                tmp_token=malloc(3);
-                tmp_token[0]='>';
-                tmp_token[1]='>';
-                tmp_token[2]='\0';
-                args[(*argsc)++]=tmp_token;
-                p2+=2;
-                while(line[p2]==' ')p2++;
-                p1=p2;
-            }
-            else {
-                tmp_token=malloc(2);
-                tmp_token[0]=line[p2];
-                tmp_token[1]='\0';
-                args[(*argsc)++]=tmp_token;
-                p2++;
-                while(line[p2]==' ')p2++;
-                p1=p2;
-            }
-        }
-        else p2++;
+        else p2++;   
     }
 
-    if(p2>p1) args[(*argsc)++]=&line[p1];
-    
-    args[*argsc] = NULL; ///args must be null terminated
+    if(p2>p1){
+        if(*argsc>=MAX_ARGS-1) return -1;
+        args[(*argsc)++]=&token[p1];
+    }
+    return 0;
+}
+
+
+void parse_command(char line[], char *args[], int *argsc){
+    *argsc=0;
+    args[0]=NULL;
+    char *token=strtok(line, " ");
+    while(token!=NULL){
+        if(split_operators(token, args, argsc)==-1){
+            *argsc=0;
+            args[0]=NULL;
+            return;
+        }
+
+        token=strtok(NULL, " ");
+    }
+    args[*argsc]=NULL;
 }
 
 ///Launch related functions
