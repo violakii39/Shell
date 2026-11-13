@@ -193,3 +193,12 @@ void launch_program_with_redirection(char *args[], int argsc)
         exit(1);
     }
 }
+
+bool command_with_redirection(char line[]){
+    int i=0;
+    while(line[i]!=NULL){
+        if(line[i]=='>'||line[i]=='<') return true;
+        i++;
+    }
+    return false;
+}
