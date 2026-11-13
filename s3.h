@@ -36,8 +36,6 @@ static inline void reap()
 }
 
 
-bool command_with_redirection(char line[]);
-
 ///Shell I/O and related functions (add more as appropriate)
 void read_command_line(char line[]);
 void construct_shell_prompt(char shell_prompt[]);
@@ -48,5 +46,4 @@ void child(char *args[], int argsc);
 
 ///Program launching functions (add more as appropriate)
 void launch_program(char *args[], int argsc);
-void launch_program_with_redirection(char *args[], int argsc);
 #endif

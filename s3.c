@@ -34,7 +34,6 @@ void read_command_line(char line[])
     line[strlen(line) - 1] = '\0'; 
 }
 
-
 void parse_command(char line[], char *args[], int *argsc)
 {
     int p1=0;
@@ -82,7 +81,6 @@ void parse_command(char line[], char *args[], int *argsc)
     args[*argsc] = NULL; ///args must be null terminated
 }
 
-
 ///Launch related functions
 void child(char *args[], int argsc)
 {
@@ -95,37 +93,6 @@ void child(char *args[], int argsc)
     perror("execvp");
     exit(1);
 }
-
-void launch_program(char *args[], int argsc)
-{
-    ///Implement this function:
-    if (argsc==0||args[ARG_PROGNAME]==NULL) return;
-    if (strcmp(args[ARG_PROGNAME],"exit")==0) exit(0);
-
-    
-    pid_t pid=fork();
-
-
-
-    if(pid<0){
-        printf("fork failed\n");
-        exit(1);
-    } 
-    else if(pid==0) {
-        child(args,argsc);
-        exit(1);
-    }
-    ///fork() a child process.
-    ///In the child part of the code,
-    ///call child(args, argv)
-    ///For reference, see the code in lecture 2.
-
-    ///Handle the 'exit' command;
-    ///so that the shell, not the child process,
-    ///exits.
-}
-
-
 
 void configure_redirection_dup(char *args[], int argsc){
     for (int i = 0; i < argsc; i++){ // configure every redirection in the command
@@ -167,38 +134,32 @@ void configure_redirection_dup(char *args[], int argsc){
     }
 }
 
-void launch_program_with_redirection(char *args[], int argsc)
+void launch_program(char *args[], int argsc)
 {
     ///Implement this function:
     if (argsc==0||args[ARG_PROGNAME]==NULL) return;
     if (strcmp(args[ARG_PROGNAME],"exit")==0) exit(0);
 
-
-    //parse args into separate commands, store in a type *args[][]
-
-    //create required number of pipes
-
-    //for number commands in *args[][], fork different number of childs
-    //
-
     
-    pid_t rc = fork();
-    if(rc<0){
+    pid_t pid=fork();
+
+
+
+    if(pid<0){
         printf("fork failed\n");
         exit(1);
     } 
-    else if(rc==0) {
+    else if(pid==0) {
         configure_redirection_dup(args,argsc);
         child(args,argsc);
         exit(1);
     }
-}
+    ///fork() a child process.
+    ///In the child part of the code,
+    ///call child(args, argv)
+    ///For reference, see the code in lecture 2.
 
-bool command_with_redirection(char line[]){
-    int i=0;
-    while(line[i]!=NULL){
-        if(line[i]=='>'||line[i]=='<') return true;
-        i++;
-    }
-    return false;
+    ///Handle the 'exit' command;
+    ///so that the shell, not the child process,
+    ///exits.
 }
