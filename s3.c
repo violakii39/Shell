@@ -39,18 +39,24 @@ int split_operators(char *token, char *args[], int *argsc){
     int p1=0;
     int p2=0;
     while(token[p2]!='\0'){
-        if(token[p2]=='<'||token[p2]=='>'){
+        if(token[p2]=='<'||token[p2]=='>'||token[p2]=='|'||token[p2]==';'){
             char *op;
             int op_len=1;
             if(token[p2]=='<'){
                 op="<";
             }
-            else if(token[p2+1]=='>'){
+            else if(token[p2]=='>'||token[p2+1]=='>'){
                 op_len++;
                 op=">>";
             }
-            else{
+            else if(token[p2]=='>'){
                 op=">";
+            }
+            else if(token[p2]=='|'){
+                op="|";
+            }
+            else if(token[p2]==';'){
+                op=";";
             }
             if(p2>p1){
                 if(*argsc>=MAX_ARGS-1) return -1;
@@ -101,6 +107,36 @@ void child(char *args[], int argsc)
     execvp(args[ARG_PROGNAME],args);
     perror("execvp");
     exit(1);
+}
+
+int group_commands(char *args[], int argsc, command commands[]){
+    if(argsc<0||argsc>=MAX_ARGS) return -1;
+    if(argsc==0) return 0;
+
+    int p1=0;
+    int commandc=0;
+    bool at_end=false;
+    bool is_pipe;
+    bool is_batch;
+    for(int p2=0;p2<argsc;p2++){
+        at_end=(p2==argsc);
+        is_pipe=(!at_end && strcmp(args[p2],"|")==0);
+        is_batch=(!at_end && strcmp(args[p2],";")==0);
+        if(!at_end && !is_batch && !is_pipe) continue;
+        if(p2==p1){
+            if(at_end && commandc>0 && !commands[commandc-1].pipe_to_next) break;
+            fprintf(stderr, "empty command error\n");
+            return -1;
+        }
+
+        commands[commandc].args=&args[p1];
+        commands[commandc].argsc=(p2-p1);
+        commands[commandc].pipe_to_next=is_pipe;
+        commandc++;
+        args[p2]=NULL;
+        p1=p2+1;
+    }
+    return commandc;
 }
 
 void configure_redirection_dup(char *args[], int argsc){
