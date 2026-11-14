@@ -1,9 +1,25 @@
 #include "s3.h"
 
+
+
+void init_lwd(char *lwd)
+{
+    if (getcwd(lwd, MAX_PROMPT_LEN - 6) == NULL) {
+        perror("getcwd");
+        return;
+    }
+}
+
+
 ///Simple for now, but will be expanded in a following section
 void construct_shell_prompt(char shell_prompt[])
 {
-    strcpy(shell_prompt, "[s3]$ ");
+    char cwd[MAX_PROMPT_LEN-6];
+    if (getcwd(cwd, MAX_PROMPT_LEN - 6) == NULL) {
+        perror("getcwd");
+        return;
+    }
+    snprintf(shell_prompt, MAX_PROMPT_LEN, "[%s s3]$", cwd);
 }
 
 
@@ -45,7 +61,7 @@ int split_operators(char *token, char *args[], int *argsc){
             if(token[p2]=='<'){
                 op="<";
             }
-            else if(token[p2]=='>'||token[p2+1]=='>'){
+            else if(token[p2]=='>'&&token[p2+1]=='>'){
                 op_len++;
                 op=">>";
             }
@@ -118,7 +134,7 @@ int group_commands(char *args[], int argsc, command commands[]){
     bool at_end=false;
     bool is_pipe;
     bool is_batch;
-    for(int p2=0;p2<argsc;p2++){
+    for(int p2=0;p2<=argsc;p2++){
         at_end=(p2==argsc);
         is_pipe=(!at_end && strcmp(args[p2],"|")==0);
         is_batch=(!at_end && strcmp(args[p2],";")==0);
@@ -179,11 +195,46 @@ void configure_redirection_dup(char *args[], int argsc){
     }
 }
 
-void launch_program(char *args[], int argsc)
+void change_directory (char *args[], int argsc, char *lwd){
+    char cwd[MAX_PROMPT_LEN-6];
+    if (getcwd(cwd, MAX_PROMPT_LEN - 6) == NULL) {
+        perror("getcwd");
+        return;
+    }
+
+    if (argsc == 1){
+        if (chdir(getenv("HOME")) == -1){
+            perror("chdir error");
+            return;
+        }
+    }
+    else if (strcmp(args[1], "-") == 0){
+        if (chdir(lwd) == -1){
+            perror("chdir error");
+            return;
+        }
+    }
+    else{
+        if (chdir(args[1]) == -1){
+            perror("chdir error");
+            return;
+        }
+    }
+
+    strcpy(lwd,cwd);
+}
+
+void launch_program(char *args[], int argsc, char *lwd)
 {
     ///Implement this function:
     if (argsc==0||args[ARG_PROGNAME]==NULL) return;
+
     if (strcmp(args[ARG_PROGNAME],"exit")==0) exit(0);
+
+    if (strcmp(args[ARG_PROGNAME],"cd")==0){
+        change_directory(args, argsc, lwd);
+        return;
+    }
 
     
     pid_t pid=fork();

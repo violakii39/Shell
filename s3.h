@@ -37,6 +37,8 @@ static inline void reap()
     wait(NULL);
 }
 
+//initialize lwd
+void init_lwd(char *lwd);
 
 ///Shell I/O and related functions (add more as appropriate)
 void read_command_line(char line[]);
@@ -48,8 +50,8 @@ int split_operators(char *token, char *args[], int *argsc);
 void child(char *args[], int argsc);
 
 ///Program launching functions (add more as appropriate)
-void launch_program(char *args[], int argsc);
-#endif
+void launch_program(char *args[], int argsc, char *lwd);
+
 
 bool command_with_redirection(char line[]);
 void launch_program_with_redirection(char *args[], int argsc);
@@ -62,3 +64,4 @@ typedef struct{
 } command;
 
 int group_commands(char *args[], int argsc, command commands[]);
+#endif
