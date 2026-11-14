@@ -4,6 +4,7 @@
 ///See reference for what these libraries provide
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -35,6 +36,7 @@ static inline void reap()
 {
     wait(NULL);
 }
+
 
 ///Shell I/O and related functions (add more as appropriate)
 void read_command_line(char line[]);
