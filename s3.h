@@ -55,7 +55,7 @@ void launch_program(char *args[], int argsc, char *lwd);
 
 bool command_with_redirection(char line[]);
 void launch_program_with_redirection(char *args[], int argsc);
-
+void configure_redirection_dup(char *args[], int argsc);
 
 typedef struct{
     char **args;
@@ -64,4 +64,5 @@ typedef struct{
 } command;
 
 int group_commands(char *args[], int argsc, command commands[]);
+void execute_commands(command commands[], int commandc, char *lwd);
 #endif

@@ -155,6 +155,60 @@ int group_commands(char *args[], int argsc, command commands[]){
     return commandc;
 }
 
+void execute_commands(command commands[], int commandc, char *lwd){
+    int prev_read=-1;
+    int pending=0;
+
+    for(int i=0;i<commandc;i++){
+        command *cmd=&commands[i];
+        if(prev_read==-1 && !cmd->pipe_to_next){
+            launch_program(cmd->args, cmd->argsc, lwd);
+            reap();
+            continue;
+        }
+
+        int fd[2];
+        if(cmd->pipe_to_next && pipe(fd)==-1){
+            perror("pipe");
+            exit(1);
+        }
+
+        pid_t pid=fork();
+
+        if(pid<0){
+            perror("fork");
+            exit(1);
+        }
+
+        if(pid==0){
+            if(prev_read!=-1){
+                dup2(prev_read, STDIN_FILENO);
+                close(prev_read);
+            }
+            if(cmd->pipe_to_next){
+                close(fd[0]);
+                dup2(fd[1], STDOUT_FILENO);
+                close(fd[1]);
+            }
+            configure_redirection_dup(cmd->args, cmd->argsc);
+            child(cmd->args,cmd->argsc);
+            exit(1);
+        }
+        pending++;
+        if(prev_read!=-1) close(prev_read);
+        if(cmd->pipe_to_next){
+            close(fd[1]);
+            prev_read=fd[0];
+        }
+        else{
+            prev_read=-1;
+            for(int j=0;j<pending;j++) reap();
+            pending=0;
+        }
+    }
+
+}
+
 void configure_redirection_dup(char *args[], int argsc){
     for (int i = 0; i < argsc; i++){ // configure every redirection in the command
         int dup_fd[2];
