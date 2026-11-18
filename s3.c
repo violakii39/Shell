@@ -50,51 +50,66 @@ void read_command_line(char line[])
     line[strlen(line) - 1] = '\0'; 
 }
 
-void parse_command(char line[], char *args[], int *argsc)
-{
+
+int split_operators(char *token, char *args[], int *argsc){
     int p1=0;
     int p2=0;
-    char *tmp_token;
-    *argsc=0;
-    while(line[p2]!='\0'){
-        if(line[p2]==' '){
-            if(p2>p1) args[(*argsc)++]=&line[p1];
-            line[p2]='\0';
-            p2++;
-            while(line[p2]==' ') p2++;
+    while(token[p2]!='\0'){
+        if(token[p2]=='<'||token[p2]=='>'||token[p2]=='|'||token[p2]==';'){
+            char *op;
+            int op_len=1;
+            if(token[p2]=='<'){
+                op="<";
+            }
+            else if(token[p2]=='>'&&token[p2+1]=='>'){
+                op_len++;
+                op=">>";
+            }
+            else if(token[p2]=='>'){
+                op=">";
+            }
+            else if(token[p2]=='|'){
+                op="|";
+            }
+            else if(token[p2]==';'){
+                op=";";
+            }
+            if(p2>p1){
+                if(*argsc>=MAX_ARGS-1) return -1;
+                token[p2]='\0';
+                args[(*argsc)++]=&token[p1];
+            }
+            if(*argsc>=MAX_ARGS-1) return -1;
+            args[(*argsc)++]=op;
+
+            p2+=op_len;
             p1=p2;
         }
-        else if(line[p2]=='<'||line[p2]=='>'){
-            if(p2>p1) {tmp_token=malloc(p2-p1+1);
-            memcpy(tmp_token,&line[p1],p2-p1);
-            tmp_token[p2-p1]='\0';
-            args[(*argsc)++]=tmp_token;}
-            if(line[p2]=='>'&&line[p2+1]=='>') {
-                tmp_token=malloc(3);
-                tmp_token[0]='>';
-                tmp_token[1]='>';
-                tmp_token[2]='\0';
-                args[(*argsc)++]=tmp_token;
-                p2+=2;
-                while(line[p2]==' ')p2++;
-                p1=p2;
-            }
-            else {
-                tmp_token=malloc(2);
-                tmp_token[0]=line[p2];
-                tmp_token[1]='\0';
-                args[(*argsc)++]=tmp_token;
-                p2++;
-                while(line[p2]==' ')p2++;
-                p1=p2;
-            }
-        }
-        else p2++;
+        else p2++;   
     }
 
-    if(p2>p1) args[(*argsc)++]=&line[p1];
-    
-    args[*argsc] = NULL; ///args must be null terminated
+    if(p2>p1){
+        if(*argsc>=MAX_ARGS-1) return -1;
+        args[(*argsc)++]=&token[p1];
+    }
+    return 0;
+}
+
+
+void parse_command(char line[], char *args[], int *argsc){
+    *argsc=0;
+    args[0]=NULL;
+    char *token=strtok(line, " ");
+    while(token!=NULL){
+        if(split_operators(token, args, argsc)==-1){
+            *argsc=0;
+            args[0]=NULL;
+            return;
+        }
+
+        token=strtok(NULL, " ");
+    }
+    args[*argsc]=NULL;
 }
 
 ///Launch related functions
@@ -108,6 +123,90 @@ void child(char *args[], int argsc)
     execvp(args[ARG_PROGNAME],args);
     perror("execvp");
     exit(1);
+}
+
+int group_commands(char *args[], int argsc, command commands[]){
+    if(argsc<0||argsc>=MAX_ARGS) return -1;
+    if(argsc==0) return 0;
+
+    int p1=0;
+    int commandc=0;
+    bool at_end=false;
+    bool is_pipe;
+    bool is_batch;
+    for(int p2=0;p2<=argsc;p2++){
+        at_end=(p2==argsc);
+        is_pipe=(!at_end && strcmp(args[p2],"|")==0);
+        is_batch=(!at_end && strcmp(args[p2],";")==0);
+        if(!at_end && !is_batch && !is_pipe) continue;
+        if(p2==p1){
+            if(at_end && commandc>0 && !commands[commandc-1].pipe_to_next) break;
+            fprintf(stderr, "empty command error\n");
+            return -1;
+        }
+
+        commands[commandc].args=&args[p1];
+        commands[commandc].argsc=(p2-p1);
+        commands[commandc].pipe_to_next=is_pipe;
+        commandc++;
+        args[p2]=NULL;
+        p1=p2+1;
+    }
+    return commandc;
+}
+
+void execute_commands(command commands[], int commandc, char *lwd){
+    int prev_read=-1;
+    int pending=0;
+
+    for(int i=0;i<commandc;i++){
+        command *cmd=&commands[i];
+        if(prev_read==-1 && !cmd->pipe_to_next){
+            launch_program(cmd->args, cmd->argsc, lwd);
+            reap();
+            continue;
+        }
+
+        int fd[2];
+        if(cmd->pipe_to_next && pipe(fd)==-1){
+            perror("pipe");
+            exit(1);
+        }
+
+        pid_t pid=fork();
+
+        if(pid<0){
+            perror("fork");
+            exit(1);
+        }
+
+        if(pid==0){
+            if(prev_read!=-1){
+                dup2(prev_read, STDIN_FILENO);
+                close(prev_read);
+            }
+            if(cmd->pipe_to_next){
+                close(fd[0]);
+                dup2(fd[1], STDOUT_FILENO);
+                close(fd[1]);
+            }
+            configure_redirection_dup(cmd->args, cmd->argsc);
+            child(cmd->args,cmd->argsc);
+            exit(1);
+        }
+        pending++;
+        if(prev_read!=-1) close(prev_read);
+        if(cmd->pipe_to_next){
+            close(fd[1]);
+            prev_read=fd[0];
+        }
+        else{
+            prev_read=-1;
+            for(int j=0;j<pending;j++) reap();
+            pending=0;
+        }
+    }
+
 }
 
 void configure_redirection_dup(char *args[], int argsc){
