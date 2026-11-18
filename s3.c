@@ -55,7 +55,7 @@ int split_operators(char *token, char *args[], int *argsc){
     int p1=0;
     int p2=0;
     while(token[p2]!='\0'){
-        if(token[p2]=='<'||token[p2]=='>'||token[p2]=='|'||token[p2]==';'){
+        if(token[p2]=='<'||token[p2]=='>'||token[p2]=='|'||token[p2]==';'||token[p2]=='('||token[p2]==')'){
             char *op;
             int op_len=1;
             if(token[p2]=='<'){
@@ -73,6 +73,12 @@ int split_operators(char *token, char *args[], int *argsc){
             }
             else if(token[p2]==';'){
                 op=";";
+            }
+            else if(token[p2]=='('){
+                op="(";
+            }
+            else if(token[p2]==')'){
+                op=")";
             }
             if(p2>p1){
                 if(*argsc>=MAX_ARGS-1) return -1;
