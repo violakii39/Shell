@@ -1,4 +1,2 @@
-orange
-apple
-banana
-zebra
+abcd
+edfg

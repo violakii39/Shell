@@ -156,22 +156,28 @@ int group_commands(char *args[], int argsc, command commands[]){
 }
 
 void execute_commands(command commands[], int commandc, char *lwd){
-    int prev_read=-1;
+    int prev_pipeout=-1;
     int pending=0;
 
+    //for piped commands separated by |, first command's stdout and second command's stdin goes into the pipe
     for(int i=0;i<commandc;i++){
         command *cmd=&commands[i];
-        if(prev_read==-1 && !cmd->pipe_to_next){
+
+        //no previous incoming pipe & not piped to next command -> single command, execute directly
+        if(prev_pipeout==-1 && !cmd->pipe_to_next){
             launch_program(cmd->args, cmd->argsc, lwd);
             reap();
             continue;
         }
 
+        //command is piped, initialize pipe
         int fd[2];
         if(cmd->pipe_to_next && pipe(fd)==-1){
             perror("pipe");
             exit(1);
         }
+
+        //fd[0] = read end of pipe, fd[1] = write end of pipe
 
         pid_t pid=fork();
 
@@ -181,27 +187,28 @@ void execute_commands(command commands[], int commandc, char *lwd){
         }
 
         if(pid==0){
-            if(prev_read!=-1){
-                dup2(prev_read, STDIN_FILENO);
-                close(prev_read);
+            if(prev_pipeout!=-1){ //the previous command piped, configure stdin to previous pipe's output
+                dup2(prev_pipeout, STDIN_FILENO);
+                close(prev_pipeout);//close redundant descriptors
             }
-            if(cmd->pipe_to_next){
-                close(fd[0]);
+            if(cmd->pipe_to_next){ //current command pipes to next command, configure stdout to pipe's input
+                close(fd[0]);//close unused end
                 dup2(fd[1], STDOUT_FILENO);
-                close(fd[1]);
+                close(fd[1]);//closed redundant descriptors
             }
-            configure_redirection_dup(cmd->args, cmd->argsc);
+            configure_redirection_dup(cmd->args, cmd->argsc);//configure redireection within command
             child(cmd->args,cmd->argsc);
             exit(1);
         }
-        pending++;
-        if(prev_read!=-1) close(prev_read);
-        if(cmd->pipe_to_next){
-            close(fd[1]);
-            prev_read=fd[0];
+
+        pending++;//record +1 pending piped command for later reaping
+        if(prev_pipeout!=-1) close(prev_pipeout);
+        if(cmd->pipe_to_next){ //current command didn't reach end of pipe line, do not reap, keep launching next command
+            close(fd[1]);//close fd[1] on parents end
+            prev_pipeout=fd[0];//current command piped, send input end of pipe to next command for dup configuration
         }
-        else{
-            prev_read=-1;
+        else{//reached end of pipeline
+            prev_pipeout=-1;
             for(int j=0;j<pending;j++) reap();
             pending=0;
         }
@@ -290,10 +297,7 @@ void launch_program(char *args[], int argsc, char *lwd)
         return;
     }
 
-    
     pid_t pid=fork();
-
-
 
     if(pid<0){
         printf("fork failed\n");
